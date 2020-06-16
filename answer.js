@@ -49,7 +49,6 @@ function findAnswer(question, answers) {
   question = nlp(question)
   answers = answers.map(text => nlp(text))
 
-  question.debug()
   var questionWord = question.matchOne('#QuestionWord').text('clean').replace(/[^a-z]/, '')
   var questionType
   if (questionWord === 'how' && question.has('how (much|many)')) {
@@ -61,7 +60,6 @@ function findAnswer(question, answers) {
   } else if (questionWord === 'where') {
     questionType = 'where'
   }
-  console.log('type', questionType)
 
   var rankedAnswers = answers.map((answer, i) => {
     var similarities = sentenceSimilarities(question, answer)

@@ -36,3 +36,9 @@ function showAnswer() {
   console.log(answers)
 }
 showAnswer()
+
+try {
+  navigator.serviceWorker.register('worker.js')
+} catch (e) {
+  console.error(e)
+}
