@@ -26,7 +26,7 @@ function sentenceSimilarities(sentence1, sentence2) {
 
       var similarity = 0
       if (word1vec && word2vec) {
-        similarity = Word2VecUtils.getCosSim(word1vec, word2vec)
+        similarity = cosSim(word1vec, word2vec)
       } else {
         similarity = stringSimilarity.compareTwoStrings(word1, word2)
       }
@@ -63,12 +63,16 @@ function findAnswer(question, answers) {
 
   var rankedAnswers = answers.map((answer, i) => {
     var similarities = sentenceSimilarities(question, answer)
+    
     var weightData = []
     var weightedSim = similarities.reduce((prev, curr) => {
       var score = curr.score
 
       var weight = 0.5
-      if (isStopword[curr.term1.text('clean').replace(/[^a-z]/, '')]) weight = 0.25
+      if (
+        isStopword[curr.term1.text('clean').replace(/[^a-z]/, '')] ||
+        isStopword[curr.term2.text('clean').replace(/[^a-z]/, '')]
+      ) weight = 0.25
       else if (curr.term1.has('#Noun') || curr.term1.has('#Verb')) weight = 1
 
       weightData.push({
@@ -83,15 +87,15 @@ function findAnswer(question, answers) {
     var questionAnswerMult = 1
     if (questionType) {
       questionAnswerMult = 0.5
-      if (questionType === 'how much' && answer.match('#Value').not('#Date').length > 0) {
-        questionAnswerMult = 1
-      } else if (questionType === 'who' && answer.has('#Person')) {
-        questionAnswerMult = 1
-      } else if (questionType === 'when' && answer.has('(#Time|#Date)')) {
-        questionAnswerMult = 1
-      } else if (questionType === 'where' && answer.has('#Place')) {
-        questionAnswerMult = 1
-      }
+
+      if (questionType === 'how much' && answer.match('#Value').not('#Date').length > 0) questionAnswerMult = 1
+      else if (questionType === 'who' && answer.has('#Person')) questionAnswerMult = 1
+      else if (questionType === 'when' && answer.has('(#Time|#Date)')) questionAnswerMult = 1
+      else if (questionType === 'where' && answer.has('#Place')) questionAnswerMult = 1
+      else if (
+        (questionType === 'where' || questionType === 'who') && 
+        answer.has('#ProperNoun')
+      ) questionAnswerMult = 0.75
     }
 
     var score = weightedSim * questionAnswerMult
@@ -111,3 +115,50 @@ function findAnswer(question, answers) {
 
   return rankedAnswers
 }
+
+/*
+function noVecSentenceSimilarities(sentence1, sentence2) {
+  var sent1terms = sentence1.contractions().expand().all().terms()
+  var sent2terms = sentence2.contractions().expand().all().terms()
+
+  return sent1terms.map(term1 => {
+    var word1 = term1.text('clean').replace(/[^a-z0-9]/, '')
+    var bestTerm
+    var bestSim = 0
+
+    var word1vec = wordVecs[word1]
+    sent2terms.some(term2 => {
+      var word2 = term2.text('clean').replace(/[^a-z0-9]/, '')
+      console.log(word1, synonyms(word1))
+      console.log(word2, synonyms(word2))
+
+      if (word2 === word1) {
+        bestTerm = term2
+        bestSim = 1
+
+        return true
+      }
+
+      var word2vec = wordVecs[word2]
+
+      var similarity = 0
+      if (word1vec && word2vec) {
+        similarity = cosSim(word1vec, word2vec)
+      } else {
+        similarity = stringSimilarity.compareTwoStrings(word1, word2)
+      }
+
+      if (similarity > bestSim) {
+        bestTerm = term2
+        bestSim = similarity
+      }
+    })
+
+    return {
+      term1,
+      term2: bestTerm,
+      score: bestSim
+    }
+  })
+}
+*/

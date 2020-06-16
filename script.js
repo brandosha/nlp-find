@@ -9,25 +9,28 @@ questionInput.value = `
 How many buildings were destroyed?
 `.trim()
 
+var inputPrompt = promptInput.value
+var qaDoc = createQADocument(inputPrompt)
+
 function showAnswer() {
-  var prompt = promptInput.value
   var question = questionInput.value
-  console.log(prompt)
-  console.log(question)
 
-  var nlpPrompt = nlp(prompt)
-  var promptSentences = nlpPrompt.sentences().json().map(sentence => sentence.text)
+  if (inputPrompt !== promptInput.value) {
+    inputPrompt = promptInput.value
+    qaDoc = createQADocument(inputPrompt)
+  }
 
-  var answers = findAnswer(question, promptSentences)
+  var answers = qaDoc.ask(question)
+
   var maxScore = answers[0].score
-
   var sentences = Array(answers.length).fill(undefined)
-  answers.forEach(answer => {
+  answers.forEach((answer, i) => {
     var newEl = document.createElement('span')
     var normScore = answer.score / maxScore
     newEl.style.background = `rgba(255, 255, 0, ${normScore * normScore})`
+    if (i === 0) newEl.style.textDecoration = 'underline'
     newEl.innerText = answer.text + ' '
-    sentences[answer.index] = newEl
+    sentences[answer.sentenceIndex] = newEl
   })
 
   output.innerHTML = ''
