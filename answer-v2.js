@@ -76,7 +76,6 @@ function createQADocument(text) {
     var totalSimilarity = 0
     var comparedWords = 0
     var similarities = terms1.map(term1 => {
-      var index1 = termIndices[term1.list[0].start]
       var word1 = term1.text('clean').replace(/[^a-z0-9]/, '')
       if (isStopword[word1]) return
       var vec1 = getWordVec(word1)
@@ -84,9 +83,8 @@ function createQADocument(text) {
       var bestWord
       var bestSim = 0
       terms2.forEach(term2 => {
-        var index2 = termIndices[term2.list[0].start]
         var word2 = term2.text('clean').replace(/[^a-z0-9]/, '')
-        if (index1 === index2 || isStopword[word2]) return
+        if (isStopword[word2]) return
         var vec2 = getWordVec(word2)
 
         var similarity = 0
@@ -193,7 +191,7 @@ function createQADocument(text) {
 
     var bestMatch = matchingNouns[bestMatchIndex]
     // console.log(sentence.text(), pronoun.text, bestMatch ? bestMatch.noun.text : undefined)
-    if (bestMatch) {
+    if (bestMatch !== undefined) {
       pronounDoc.replace(bestMatch.noun.text)
     }
   })
@@ -237,6 +235,7 @@ function createQADocument(text) {
 
       return {
         text: originalSentences.eq(sentenceIndex).text(),
+        internalText: sentence.text(),
         answerWeight: questionAnswerMult,
         questionType, score, similarity, sentenceIndex
       }
