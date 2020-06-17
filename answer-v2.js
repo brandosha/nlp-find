@@ -36,6 +36,26 @@ function getWordVec(word) {
   return vec
 }
 
+function getPhraseVec(phrase) {
+  var avgVec = Array(20).fill(0)
+  var vecCount = 0
+  phrase.terms().forEach(term => {
+    var word = term.text('clean').replace(/[^a-z]/, '')
+    if (isStopword[word]) return
+    var vec = getWordVec(word)
+
+    if (vec !== undefined) {
+      avgVec.forEach((_, i) => {
+        avgVec[i] += vec[i]
+      })
+      vecCount++
+    }
+  })
+
+  if (vecCount < 2) return avgVec
+  return avgVec.map(val => val / vecCount)
+}
+
 var corefrenceProximity = 30
 
 function createQADocument(text) {
@@ -43,7 +63,6 @@ function createQADocument(text) {
   var originalSentences = original.sentences()
 
   var document = original.clone()
-  console.log(document.text('root'))
 
   var termIndices = {  }
   document.terms().forEach((term, i) => {
@@ -97,6 +116,25 @@ function createQADocument(text) {
     return { similarities, score }
   }
 
+  function avgSimilarity(phrase, sentence) {
+    var phraseVec = getPhraseVec(phrase)
+
+    var totalSim = 0
+    var wordCount = 0
+    sentence.terms().forEach(term => {
+      var word = term.text('clean').replace(/[^a-z0-9]/, '')
+      if (isStopword[word]) return
+      var wordVec = getWordVec(word)
+      if (wordVec === undefined) return
+
+      totalSim += cosSim(phraseVec, wordVec)
+      wordCount++
+    }, 0)
+
+    if (wordCount < 2) return totalSim
+    return totalSim / wordCount
+  }
+
   var nouns = document.nouns()
   nouns = nouns.map(nounDoc => {
     var index = termIndices[nounDoc.list[0].start]
@@ -143,9 +181,9 @@ function createQADocument(text) {
         if (position > 0) return
         if (Math.abs(position) > corefrenceProximity) return
 
-        var similarity = smartSimilarity(noun.origDoc, sentence)
-        if (similarity.score > bestMatchScore) {
-          bestMatchScore = similarity.score
+        var similarity = avgSimilarity(noun.origDoc, sentence) // smartSimilarity(noun.origDoc, sentence)
+        if (similarity > bestMatchScore) {
+          bestMatchScore = similarity
           bestMatchIndex = matchingNouns.length
         }
 
@@ -154,6 +192,7 @@ function createQADocument(text) {
     })
 
     var bestMatch = matchingNouns[bestMatchIndex]
+    // console.log(sentence.text(), pronoun.text, bestMatch ? bestMatch.noun.text : undefined)
     if (bestMatch) {
       pronounDoc.replace(bestMatch.noun.text)
     }
@@ -161,6 +200,7 @@ function createQADocument(text) {
 
   function ask(question) {
     question = nlp(question)
+    // var questionVec = getPhraseVec(question)
 
     var questionWord = question.matchOne('#QuestionWord').text('clean').replace(/[^a-z]/, '')
     var questionType
@@ -175,6 +215,7 @@ function createQADocument(text) {
     }
 
     var answers = document.sentences().map((sentence, sentenceIndex) => {
+      // var sentenceVec = getPhraseVec(sentence)
       var similarity = smartSimilarity(question, sentence)
 
       var questionAnswerMult = 1
@@ -185,7 +226,7 @@ function createQADocument(text) {
         else if (questionType === 'who' && sentence.has('#Person')) questionAnswerMult = 1
         else if (questionType === 'when' && sentence.has('(#Time|#Date)')) questionAnswerMult = 1
         else if (questionType === 'where' && sentence.has('#Place')) questionAnswerMult = 1
-        else if (questionType === 'when' && sentence.has('#Cardinal')) questionAnswerMult = 0.75
+        else if (questionType === 'when' && sentence.match('#NumericValue').has('#Cardinal')) questionAnswerMult = 0.75
         else if (
           (questionType === 'where' || questionType === 'who') && 
           sentence.has('#ProperNoun')
