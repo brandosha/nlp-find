@@ -37,7 +37,7 @@ function getWordVec(word) {
 }
 
 function getPhraseVec(phrase) {
-  var avgVec = Array(20).fill(0)
+  var avgVec = Array(300).fill(0)
   var vecCount = 0
   phrase.terms().forEach(term => {
     var word = term.text('clean').replace(/[^a-z]/, '')

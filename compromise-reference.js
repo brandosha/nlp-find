@@ -103,14 +103,18 @@ var reference = function(Doc, world, _nlp, Phrase, Term) {
         var tags = term.tags
         if (tags['Person'] || tags['Plural']) {
           matchesPronoun['they'] = true
+          matchesPronoun['them'] = true
+          matchesPronoun['their'] = true
           if (!['they', 'he', 'she'].includes(primaryPronoun)) primaryPronoun = 'they'
         }
         if (tags['MaleName']) {
           matchesPronoun['he'] = true
+          matchesPronoun['his'] = true
           primaryPronoun = 'he'
         }
         if (tags['FemaleName']) {
           matchesPronoun['she'] = true
+          matchesPronoun['her'] = true
           primaryPronoun = 'she'
         }
       })
@@ -279,6 +283,20 @@ var reference = function(Doc, world, _nlp, Phrase, Term) {
       var pronoun = cache.pronouns[pronounId]
       var pronounText = pronoun.doc.text('clean').replace(/[^a-z]/, '')
 
+      var matchingNouns = []
+      nounIds.some(nounId => {
+        var noun = cache.nouns[nounId]
+
+        if (noun.index > pronoun.index) return true
+        if (noun.matchesPronoun[pronounText]) matchingNouns.push(noun)
+      })
+
+      if (matchingNouns.length === 0) return
+      else if (matchingNouns.length === 1) {
+        pronoun.reference = matchingNouns[0].doc
+        return
+      }
+
       if (pronoun.descriptions.length === 0) return
 
       var descriptionTerms = []
@@ -296,8 +314,7 @@ var reference = function(Doc, world, _nlp, Phrase, Term) {
       var bestNoun = null
       var bestSim = 0
 
-      nounIds.forEach(nounId => {
-        var noun = cache.nouns[nounId]
+      matchingNouns.forEach(noun => {
         var nounVec = noun.vector
         
         if (
@@ -320,7 +337,7 @@ var reference = function(Doc, world, _nlp, Phrase, Term) {
       pronoun.reference = bestNoun
     })
 
-    // console.log(doc.text(), cache)
+    console.log(doc.text(), cache)
   })
 
 }
